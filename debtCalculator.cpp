@@ -1,3 +1,5 @@
+//As this sits this code it finished and is awaiting to be used on the gui
+
 #include <iostream>
 #include <vector>
 #include <string>
@@ -9,22 +11,26 @@
 using namespace std;
 
 
-class Card {
-private:
-    string name;
-    double balance;
-    double apr;
-    double minimumPayment;
+class Card{
 
-public:
-    Card() {
-        name = "";
-        balance = 0;
-        apr = 0;
-        minimumPayment = 0;
-    }
+    private:
 
-    void input() {
+        string name;
+        double balance;
+        double apr;
+        double minimumPayment;
+
+    public:
+
+        Card(){
+            name = "";
+            balance = 0;
+            apr = 0;
+            minimumPayment = 0;
+        }
+
+    void input(){
+
         cout << "Enter card name: ";
         getline(cin, name);
 
@@ -39,25 +45,26 @@ public:
         cin.ignore(numeric_limits<streamsize>::max(), '\n');
     }
 
-    string getName() const {
+    string getName() const{
        return name; 
     }
-    double getBalance() const {
+    double getBalance() const{
        return balance; 
     }
-    double getAPR() const {
+    double getAPR() const{
        return apr;
     }
-    double getMinimumPayment() const {
+    double getMinimumPayment() const{
        return minimumPayment; 
     }
 
-    void addInterest(double amount) {
+    void addInterest(double amount){
         balance += amount;
     }
 
-    double makePayment(double payment) {
-        if (payment > balance) {
+    double makePayment(double payment){
+
+        if (payment > balance){
             double used = balance;
             balance = 0;
             return used;
@@ -66,38 +73,42 @@ public:
         return payment;
     }
 
-    bool isPaidOff() const {
+    bool isPaidOff() const{
         return balance <= 0.0001;
     }
 };
 
-enum Strategy {
+enum Strategy{
+
     NO_ACTION,
     SNOWBALL,
     AVALANCHE
 };
 
-struct PayoffResult {
+struct PayoffResult{
+
     string methodName;
     double totalPaid = 0;
     double totalInterest = 0;
     int months = 0;
 };
 
-bool allPaidOff(const vector<Card>& cards) {
-    for (const auto& card : cards) {
-        if (!card.isPaidOff()) {
+bool allPaidOff(const vector<Card>& cards){
+
+    for(const auto& card : cards){
+        if(!card.isPaidOff()){
             return false;
         }
     }
     return true;
 }
 
-int getSnowballTarget(const vector<Card>& cards) {
+int getSnowballTarget(const vector<Card>& cards){
+
     int target = -1;
-    for (int i = 0; i < cards.size(); i++) {
-        if (!cards[i].isPaidOff()) {
-            if (target == -1 || cards[i].getBalance() < cards[target].getBalance()) {
+    for(int i = 0; i < cards.size(); i++){
+        if(!cards[i].isPaidOff()){
+            if(target == -1 || cards[i].getBalance() < cards[target].getBalance()){
                 target = i;
             }
         }
@@ -105,11 +116,12 @@ int getSnowballTarget(const vector<Card>& cards) {
     return target;
 }
 
-int getAvalancheTarget(const vector<Card>& cards) {
+int getAvalancheTarget(const vector<Card>& cards){
+
     int target = -1;
-    for (int i = 0; i < cards.size(); i++) {
-        if (!cards[i].isPaidOff()) {
-            if (target == -1 || cards[i].getAPR() > cards[target].getAPR()) {
+    for(int i = 0; i < cards.size(); i++){
+        if(!cards[i].isPaidOff()){
+            if(target == -1 || cards[i].getAPR() > cards[target].getAPR()){
                 target = i;
             }
         }
@@ -118,6 +130,7 @@ int getAvalancheTarget(const vector<Card>& cards) {
 }
 
   double getTotalMinimums(const vector<Card>& cards){
+
     double total = 0.0;
     for(const auto& card : cards){
       if(!card.isPaidOff()){
@@ -127,20 +140,21 @@ int getAvalancheTarget(const vector<Card>& cards) {
     return total;
   }
 
-  string money(double value) {
+  string money(double value){
+
     ostringstream out;
     out << "$" << fixed << setprecision(2) << value;
     return out.str();
   }
 
-  void printSummary(const PayoffResult& noAction, const PayoffResult& snowball, const PayoffResult& avalanche) {
+  void printSummary(const PayoffResult& noAction, const PayoffResult& snowball, const PayoffResult& avalanche){
 
     // Find least interest
     string bestMethod;
     double minInterest = snowball.totalInterest;
     bestMethod = "Snowball";
 
-    if (avalanche.totalInterest < minInterest) {
+    if(avalanche.totalInterest < minInterest){
         minInterest = avalanche.totalInterest;
         bestMethod = "Avalanche";
     }
@@ -150,7 +164,7 @@ int getAvalancheTarget(const vector<Card>& cards) {
     int minMonths = snowball.months;
     fastestMethod = "Snowball";
 
-    if (avalanche.months < minMonths) {
+    if(avalanche.months < minMonths){
         minMonths = avalanche.months;
         fastestMethod = "Avalanche";
     }
@@ -167,49 +181,51 @@ int getAvalancheTarget(const vector<Card>& cards) {
     cout << "--------------------------------------------------\n";
 }
 
-PayoffResult simulatePayoff(vector<Card> cards, Strategy strategy) {
+PayoffResult simulatePayoff(vector<Card> cards, Strategy strategy){
+
     PayoffResult result;
 
-    if (strategy == NO_ACTION) {
+    if(strategy == NO_ACTION){
         result.methodName = "No Action";
-    } else if (strategy == SNOWBALL) {
+    }else if (strategy == SNOWBALL){
         result.methodName = "Snowball";
-    } else {
+    }else{
         result.methodName = "Avalanche";
     }
 
     const int MAX_MONTHS = 1200;
     double baseMonthlyPayment = getTotalMinimums(cards);
 
-    while(!allPaidOff(cards) && result.months < MAX_MONTHS) {
+    while(!allPaidOff(cards) && result.months < MAX_MONTHS){
+
         result.months++;
 
         // Add monthly interest
-        for (int i = 0; i < cards.size(); i++) {
-            if (!cards[i].isPaidOff()) {
+        for(int i = 0; i < cards.size(); i++){
+            if(!cards[i].isPaidOff()){
                 double interest = cards[i].getBalance() * (cards[i].getAPR() / 100.0 / 12.0);
                 cards[i].addInterest(interest);
                 result.totalInterest += interest;
             }
         }
 
-        if (strategy == NO_ACTION) {
+        if(strategy == NO_ACTION) {
             // Pay only each card's own minimum
-            for (int i = 0; i < cards.size(); i++) {
-                if (!cards[i].isPaidOff()) {
+            for(int i = 0; i < cards.size(); i++){
+                if(!cards[i].isPaidOff()){
                     double payment = min(cards[i].getMinimumPayment(), cards[i].getBalance());
                     double used = cards[i].makePayment(payment);
                     result.totalPaid += used;
                 }
             }
-        } else {
+        }else{
             // Snowball / Avalanche:
             // Keep paying the original combined minimum total every month
             double moneyLeft = baseMonthlyPayment;
 
             // First pay all minimums
-            for (int i = 0; i < cards.size(); i++) {
-                if (!cards[i].isPaidOff()) {
+            for(int i = 0; i < cards.size(); i++){
+                if(!cards[i].isPaidOff()) {
                     double payment = min(cards[i].getMinimumPayment(), cards[i].getBalance());
                     payment = min(payment, moneyLeft);
 
@@ -220,16 +236,16 @@ PayoffResult simulatePayoff(vector<Card> cards, Strategy strategy) {
             }
 
             // Then roll extra freed-up money into target card
-            while (moneyLeft > 0.0001 && !allPaidOff(cards)) {
+            while(moneyLeft > 0.0001 && !allPaidOff(cards)){
                 int target = -1;
 
-                if (strategy == SNOWBALL) {
+                if(strategy == SNOWBALL){
                     target = getSnowballTarget(cards);
-                } else if (strategy == AVALANCHE) {
+                }else if (strategy == AVALANCHE){
                     target = getAvalancheTarget(cards);
                 }
 
-                if (target == -1) {
+                if(target == -1){
                     break;
                 }
 
@@ -239,11 +255,11 @@ PayoffResult simulatePayoff(vector<Card> cards, Strategy strategy) {
             }
         }
     }
-
     return result;
 }
 
 void printComparisonTable(const PayoffResult& noAction, const PayoffResult& snowball, const PayoffResult& avalanche){
+
   cout << "\n" << left << setw(22) << "Category" << setw(20) << noAction.methodName << setw(20) << snowball.methodName << setw(20) << avalanche.methodName << endl;
   cout << string(82, '-') << endl;
   cout << left << setw(22) << "Months to Payoff" << setw(20) << noAction.months << setw(20) << snowball.months << setw(20) << avalanche.months << endl;
@@ -253,7 +269,8 @@ void printComparisonTable(const PayoffResult& noAction, const PayoffResult& snow
 
 
 
-int main() {
+int main(){
+
     int numCards;
     vector<Card> cards;
 
@@ -261,7 +278,7 @@ int main() {
     cin >> numCards;
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
-    for (int i = 0; i < numCards; i++) {
+    for(int i = 0; i < numCards; i++) {
         cout << "\n--- Enter Card " << (i + 1) << " ---\n";
         Card temp;
         temp.input();
