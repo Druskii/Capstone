@@ -1,0 +1,61 @@
+#include <QApplication>
+#include <QLocale>
+#include <QTranslator>
+#include <QWidget>
+#include <QLabel>
+#include <QPushButton>
+#include <QVBoxLayout>
+#include <QComboBox>
+#include <QSpacerItem>
+#include <QMessageBox>
+
+
+int main(int argc, char *argv[]){
+
+    QApplication app(argc, argv);
+
+    QTranslator translator;
+    const QStringList uiLanguages = QLocale::system().uiLanguages();
+    for (const QString &locale : uiLanguages) {
+        const QString baseName = "DebtClac_" + QLocale(locale).name();
+        if (translator.load(":/i18n/" + baseName)) {
+            app.installTranslator(&translator);
+            break;
+        }
+    }
+
+    QWidget window;
+    window.setWindowTitle("Debt Calculator");
+
+    QVBoxLayout *layout = new QVBoxLayout(&window);
+
+    QLabel *label = new QLabel("How many debt's do you have:");
+    label->setAlignment(Qt::AlignHCenter);
+    layout->addWidget(label);
+
+    QComboBox *comboBox = new QComboBox();
+    comboBox->addItem("1");
+    comboBox->addItem("2");
+    comboBox->addItem("3");
+    comboBox->addItem("4");
+    comboBox->addItem("5");
+    comboBox->setFixedWidth(120);
+    layout->addWidget(comboBox, 0, Qt::AlignHCenter);
+
+        layout->addStretch();
+
+    QPushButton *button = new QPushButton("OK");
+    button->setFixedSize(140, 35);
+    layout->addWidget(button, 0, Qt::AlignHCenter);
+
+    QObject::connect(button, &QPushButton::clicked, &window, [&window, comboBox]() {
+        QString selectedNumber = comboBox->currentText();
+        QMessageBox::information(&window, "Selected Number",
+                                     "You chose: " + selectedNumber);
+    });
+
+    window.resize(300, 150);
+    window.show();
+
+    return app.exec();
+}
