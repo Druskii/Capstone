@@ -1,4 +1,4 @@
-//As this sits this code it finished and is awaiting to be used on the gui
+//As this sits this code is finished and is awaiting to be used on the gui
 
 #include <iostream>
 #include <vector>
