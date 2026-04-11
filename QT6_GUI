@@ -1,57 +1,107 @@
 #include <QApplication>
-#include <QLocale>
-#include <QTranslator>
 #include <QWidget>
 #include <QLabel>
+#include <QComboBox>
 #include <QPushButton>
 #include <QVBoxLayout>
-#include <QComboBox>
-#include <QSpacerItem>
+#include <QLineEdit>
+#include <QDialog>
+#include <QFormLayout>
 #include <QMessageBox>
 
-
-int main(int argc, char *argv[]){
-
+int main(int argc, char *argv[])
+{
     QApplication app(argc, argv);
-
-    QTranslator translator;
-    const QStringList uiLanguages = QLocale::system().uiLanguages();
-    for (const QString &locale : uiLanguages) {
-        const QString baseName = "DebtClac_" + QLocale(locale).name();
-        if (translator.load(":/i18n/" + baseName)) {
-            app.installTranslator(&translator);
-            break;
-        }
-    }
 
     QWidget window;
     window.setWindowTitle("Debt Calculator");
 
-    QVBoxLayout *layout = new QVBoxLayout(&window);
+    QVBoxLayout *mainLayout = new QVBoxLayout(&window);
 
-    QLabel *label = new QLabel("How many debt's do you have:");
+    QLabel *label = new QLabel("How many debts do you have?");
     label->setAlignment(Qt::AlignHCenter);
-    layout->addWidget(label);
+    mainLayout->addWidget(label);
 
     QComboBox *comboBox = new QComboBox();
-    comboBox->addItem("1");
-    comboBox->addItem("2");
-    comboBox->addItem("3");
-    comboBox->addItem("4");
-    comboBox->addItem("5");
+    for (int i = 1; i <= 10; i++) {
+        comboBox->addItem(QString::number(i));
+    }
     comboBox->setFixedWidth(120);
-    layout->addWidget(comboBox, 0, Qt::AlignHCenter);
+    mainLayout->addWidget(comboBox, 0, Qt::AlignHCenter);
 
-        layout->addStretch();
-
-    QPushButton *button = new QPushButton("OK");
-    button->setFixedSize(140, 35);
-    layout->addWidget(button, 0, Qt::AlignHCenter);
+    QPushButton *button = new QPushButton("Start Debt Entry");
+    button->setFixedSize(150, 35);
+    mainLayout->addWidget(button, 0, Qt::AlignHCenter);
 
     QObject::connect(button, &QPushButton::clicked, &window, [&window, comboBox]() {
-        QString selectedNumber = comboBox->currentText();
-        QMessageBox::information(&window, "Selected Number",
-                                     "You chose: " + selectedNumber);
+        int debtCount = comboBox->currentText().toInt();
+
+        for (int i = 0; i < debtCount; i++) {
+            QDialog dialog(&window);
+            dialog.setWindowTitle(QString("Debt %1").arg(i + 1));
+            dialog.resize(300, 180);
+
+            QFormLayout formLayout(&dialog);
+
+            QLineEdit *nameInput = new QLineEdit();
+            QLineEdit *totalInput = new QLineEdit();
+            QLineEdit *interestInput = new QLineEdit();
+            QLineEdit *minimumInput = new QLineEdit();
+
+            formLayout.addRow("Debt Name:", nameInput);
+            formLayout.addRow("Total Debt:", totalInput);
+            formLayout.addRow("Yearly Interest:", interestInput);
+            formLayout.addRow("Minimum Payment:", minimumInput);
+
+            QPushButton *nextButton = new QPushButton("Next");
+            QHBoxLayout *buttonLayout = new QHBoxLayout();
+            buttonLayout->addStretch();
+            buttonLayout->addWidget(nextButton);
+            buttonLayout->addStretch();
+            formLayout.addRow(buttonLayout);
+
+            QObject::connect(nextButton, &QPushButton::clicked, &dialog, [&dialog]() {
+                dialog.accept();
+            });
+
+            dialog.exec();
+
+
+            QString summery =
+                "Debt Name: " + nameInput->text() + "\n" +
+                "Total Debt: " + totalInput->text() + "\n" +
+                "Yearly Interest: " + interestInput->text() + "\n" +
+                "Minimum Payment: " + minimumInput->text();
+
+            QDialog resultDialog(&window);
+            resultDialog.setWindowTitle("Summery");
+            resultDialog.resize(300, 120);
+
+            QVBoxLayout *layout = new QVBoxLayout(&resultDialog);
+
+            QLabel *message = new QLabel("Here is what you entered: ");
+            message->setAlignment(Qt::AlignHCenter);
+            layout->addWidget(message);
+
+            QLabel *data = new QLabel(summery);
+            data->setAlignment(Qt::AlignHCenter);
+            layout->addWidget(data);
+
+            QPushButton *okButton = new QPushButton("OK");
+            QHBoxLayout *buttonLayout2 = new QHBoxLayout();
+            buttonLayout2->addStretch();
+            buttonLayout2->addWidget(okButton);
+            buttonLayout2->addStretch();
+
+            layout->addLayout(buttonLayout2);
+
+            QObject::connect(okButton, &QPushButton::clicked, &resultDialog, [&resultDialog](){
+                resultDialog.accept();
+            });
+
+            resultDialog.exec();
+
+        }
     });
 
     window.resize(300, 150);
