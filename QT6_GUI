@@ -4,108 +4,324 @@
 #include <QComboBox>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QLineEdit>
 #include <QDialog>
 #include <QFormLayout>
-#include <QMessageBox>
+#include <QFrame>
+#include <vector>
+#include <algorithm>
+#include <cmath>
+
+
+struct Debt{
+    QString name;
+    double balance;
+    double annualInterestRate;
+    double minimumPayment;
+};
+
+struct PayoffResult{
+    int months = 0;
+    double totalPaid = 0.0;
+    double totalInterest = 0.0;
+};
+
+bool allDebtsPaid(const std::vector<Debt>& debts){
+    for(const auto& debt : debts){
+        if(debt.balance > 0.01)
+            return false;
+    }
+    return true;
+}
+
+int findSnowballTarget(const std::vector<Debt>& debts){
+    int target = -1;
+    double smallest = 1e18;
+
+    for(int i = 0; i < static_cast<int>(debts.size()); i++){
+        if(debts[i].balance > 0.01 && debts[i].balance < smallest){
+            smallest = debts[i].balance;
+            target = i;
+        }
+    }
+    return target;
+}
+
+int findAvalancheTarget(const std::vector<Debt>& debts){
+    int target = -1;
+    double highest = -1.0;
+
+    for(int i = 0; i < static_cast<int>(debts.size()); i++){
+        if(debts[i].balance > 0.01 && debts[i].annualInterestRate > highest){
+            highest = debts[i].annualInterestRate;
+            target = i;
+        }
+    }
+    return target;
+}
+
+PayoffResult simulateNoAction(std::vector<Debt> debts){
+    PayoffResult result;
+
+    while(!allDebtsPaid(debts)){
+        result.months++;
+
+        for(auto& d : debts){
+            if(d.balance <= 0.01)
+                continue;
+
+            double interest = d.balance * (d.annualInterestRate / 100.0 / 12.0);
+            d.balance += interest;
+            result.totalInterest += interest;
+        }
+
+        for(auto& d : debts){
+            if(d.balance <= 0.01)
+                continue;
+
+            double payment = std::min(d.minimumPayment, d.balance);
+            d.balance -= payment;
+            result.totalPaid += payment;
+
+            if(d.balance < 0.01)
+                d.balance = 0.0;
+        }
+
+        if(result.months > 2000)
+            break;
+    }
+    return result;
+}
+
+PayoffResult simulateStrategy(std::vector<Debt> debts, bool snowball){
+    PayoffResult result;
+
+    double budget = 0.0;
+    for(const auto& d : debts)
+        budget += d.minimumPayment;
+
+    while(!allDebtsPaid(debts)){
+        result.months++;
+
+        for(auto& d : debts){
+            if (d.balance <= 0.01)
+                continue;
+
+            double interest = d.balance * (d.annualInterestRate / 100.0 / 12.0);
+            d.balance += interest;
+            result.totalInterest += interest;
+        }
+
+        double remaining = budget;
+
+        for(auto& d : debts){
+            if (d.balance <= 0.01)
+                continue;
+
+            double payment = std::min(d.minimumPayment, d.balance);
+            d.balance -= payment;
+            remaining -= payment;
+            result.totalPaid += payment;
+
+            if (d.balance < 0.01)
+                d.balance = 0.0;
+        }
+
+        while(remaining > 0.01 && !allDebtsPaid(debts)){
+            int target = snowball ? findSnowballTarget(debts)
+                                  : findAvalancheTarget(debts);
+
+            if(target == -1)
+                break;
+
+            double extra = std::min(remaining, debts[target].balance);
+            debts[target].balance -= extra;
+            remaining -= extra;
+            result.totalPaid += extra;
+
+            if(debts[target].balance < 0.01)
+                debts[target].balance = 0.0;
+        }
+
+        if(result.months > 2000)
+            break;
+    }
+
+    return result;
+}
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
+    std::vector<Debt> debts;
 
     QWidget window;
     window.setWindowTitle("Debt Calculator");
 
-    QVBoxLayout *mainLayout = new QVBoxLayout(&window);
+    QVBoxLayout *layout = new QVBoxLayout(&window);
+    layout->setSpacing(8);
+    layout->setContentsMargins(20, 20, 20, 20);
 
     QLabel *label = new QLabel("How many debts do you have?");
     label->setAlignment(Qt::AlignHCenter);
-    mainLayout->addWidget(label);
+    layout->addWidget(label);
 
-    QComboBox *comboBox = new QComboBox();
-    for (int i = 1; i <= 10; i++) {
-        comboBox->addItem(QString::number(i));
+    QComboBox *combo = new QComboBox();
+    for(int i = 1; i <= 10; i++){
+        combo->addItem(QString::number(i));
     }
-    comboBox->setFixedWidth(120);
-    mainLayout->addWidget(comboBox, 0, Qt::AlignHCenter);
+    combo->setFixedWidth(120);
+    layout->addWidget(combo, 0, Qt::AlignHCenter);
 
-    QPushButton *button = new QPushButton("Start Debt Entry");
-    button->setFixedSize(150, 35);
-    mainLayout->addWidget(button, 0, Qt::AlignHCenter);
+    QPushButton *startBtn = new QPushButton("Start");
+    startBtn->setFixedWidth(120);
+    layout->addWidget(startBtn, 0, Qt::AlignHCenter);
 
-    QObject::connect(button, &QPushButton::clicked, &window, [&window, comboBox]() {
-        int debtCount = comboBox->currentText().toInt();
+    layout->addStretch();
 
-        for (int i = 0; i < debtCount; i++) {
+    QObject::connect(startBtn, &QPushButton::clicked, &window, [&window, combo, &debts](){
+        debts.clear();
+        int count = combo->currentText().toInt();
+
+        for(int i = 0; i < count; i++){
             QDialog dialog(&window);
             dialog.setWindowTitle(QString("Debt %1").arg(i + 1));
-            dialog.resize(300, 180);
+            dialog.resize(320, 220);
 
-            QFormLayout formLayout(&dialog);
+            QFormLayout form(&dialog);
 
-            QLineEdit *nameInput = new QLineEdit();
-            QLineEdit *totalInput = new QLineEdit();
-            QLineEdit *interestInput = new QLineEdit();
-            QLineEdit *minimumInput = new QLineEdit();
+            QLineEdit *name = new QLineEdit();
+            QLineEdit *balance = new QLineEdit();
+            QLineEdit *interest = new QLineEdit();
+            QLineEdit *minPay = new QLineEdit();
 
-            formLayout.addRow("Debt Name:", nameInput);
-            formLayout.addRow("Total Debt:", totalInput);
-            formLayout.addRow("Yearly Interest:", interestInput);
-            formLayout.addRow("Minimum Payment:", minimumInput);
+            form.addRow("Name:", name);
+            form.addRow("Balance:", balance);
+            form.addRow("Interest %:", interest);
+            form.addRow("Min Payment:", minPay);
 
-            QPushButton *nextButton = new QPushButton("Next");
-            QHBoxLayout *buttonLayout = new QHBoxLayout();
-            buttonLayout->addStretch();
-            buttonLayout->addWidget(nextButton);
-            buttonLayout->addStretch();
-            formLayout.addRow(buttonLayout);
+            QPushButton *next = new QPushButton(i == count - 1 ? "Finish" : "Next");
+            QHBoxLayout *buttonRow = new QHBoxLayout();
+            buttonRow->addStretch();
+            buttonRow->addWidget(next);
+            buttonRow->addStretch();
+            form.addRow(buttonRow);
 
-            QObject::connect(nextButton, &QPushButton::clicked, &dialog, [&dialog]() {
+            QObject::connect(next, &QPushButton::clicked, &dialog, [&dialog](){
                 dialog.accept();
             });
 
             dialog.exec();
 
+            Debt d;
+            d.name = name->text();
+            d.balance = balance->text().toDouble();
+            d.annualInterestRate = interest->text().toDouble();
+            d.minimumPayment = minPay->text().toDouble();
 
-            QString summery =
-                "Debt Name: " + nameInput->text() + "\n" +
-                "Total Debt: " + totalInput->text() + "\n" +
-                "Yearly Interest: " + interestInput->text() + "\n" +
-                "Minimum Payment: " + minimumInput->text();
-
-            QDialog resultDialog(&window);
-            resultDialog.setWindowTitle("Summery");
-            resultDialog.resize(300, 120);
-
-            QVBoxLayout *layout = new QVBoxLayout(&resultDialog);
-
-            QLabel *message = new QLabel("Here is what you entered: ");
-            message->setAlignment(Qt::AlignHCenter);
-            layout->addWidget(message);
-
-            QLabel *data = new QLabel(summery);
-            data->setAlignment(Qt::AlignHCenter);
-            layout->addWidget(data);
-
-            QPushButton *okButton = new QPushButton("OK");
-            QHBoxLayout *buttonLayout2 = new QHBoxLayout();
-            buttonLayout2->addStretch();
-            buttonLayout2->addWidget(okButton);
-            buttonLayout2->addStretch();
-
-            layout->addLayout(buttonLayout2);
-
-            QObject::connect(okButton, &QPushButton::clicked, &resultDialog, [&resultDialog](){
-                resultDialog.accept();
-            });
-
-            resultDialog.exec();
-
+            debts.push_back(d);
         }
+
+        PayoffResult noAction = simulateNoAction(debts);
+        PayoffResult snowball = simulateStrategy(debts, true);
+        PayoffResult avalanche = simulateStrategy(debts, false);
+
+        QDialog result(&window);
+        result.setWindowTitle("Payoff Comparison");
+        result.resize(950, 220);
+
+        QVBoxLayout *outerLayout = new QVBoxLayout(&result);
+
+        QLabel *title = new QLabel("Payoff Comparison");
+        title->setAlignment(Qt::AlignHCenter);
+        title->setStyleSheet("font-size: 16px; font-weight: bold;");
+        outerLayout->addWidget(title);
+
+        QHBoxLayout *methodsLayout = new QHBoxLayout();
+
+        QVBoxLayout *noActionLayout = new QVBoxLayout();
+        QLabel *noActionTitle = new QLabel("No Action");
+        noActionTitle->setAlignment(Qt::AlignHCenter);
+        noActionTitle->setStyleSheet("font-weight: bold;");
+
+        QString noActionText =
+            "Months: " + QString::number(noAction.months) +
+            "\nTotal Paid: $" + QString::number(noAction.totalPaid, 'f', 2) +
+            "\nInterest: $" + QString::number(noAction.totalInterest, 'f', 2);
+
+        QLabel *noActionLabel = new QLabel(noActionText);
+        noActionLabel->setWordWrap(true);
+        noActionLabel->setAlignment(Qt::AlignTop);
+
+        noActionLayout->addWidget(noActionTitle);
+        noActionLayout->addWidget(noActionLabel);
+
+        QFrame *line1 = new QFrame();
+        line1->setFrameShape(QFrame::VLine);
+        line1->setFrameShadow(QFrame::Sunken);
+
+        QVBoxLayout *snowballLayout = new QVBoxLayout();
+        QLabel *snowballTitle = new QLabel("Snowball");
+        snowballTitle->setAlignment(Qt::AlignHCenter);
+        snowballTitle->setStyleSheet("font-weight: bold;");
+
+        QString snowballText =
+            "Months: " + QString::number(snowball.months) +
+            "\nTotal Paid: $" + QString::number(snowball.totalPaid, 'f', 2) +
+            "\nInterest: $" + QString::number(snowball.totalInterest, 'f', 2);
+
+        QLabel *snowballLabel = new QLabel(snowballText);
+        snowballLabel->setWordWrap(true);
+        snowballLabel->setAlignment(Qt::AlignTop);
+
+        snowballLayout->addWidget(snowballTitle);
+        snowballLayout->addWidget(snowballLabel);
+
+        QFrame *line2 = new QFrame();
+        line2->setFrameShape(QFrame::VLine);
+        line2->setFrameShadow(QFrame::Sunken);
+
+        QVBoxLayout *avalancheLayout = new QVBoxLayout();
+        QLabel *avalancheTitle = new QLabel("Avalanche");
+        avalancheTitle->setAlignment(Qt::AlignHCenter);
+        avalancheTitle->setStyleSheet("font-weight: bold;");
+
+        QString avalancheText =
+            "Months: " + QString::number(avalanche.months) +
+            "\nTotal Paid: $" + QString::number(avalanche.totalPaid, 'f', 2) +
+            "\nInterest: $" + QString::number(avalanche.totalInterest, 'f', 2);
+
+        QLabel *avalancheLabel = new QLabel(avalancheText);
+        avalancheLabel->setWordWrap(true);
+        avalancheLabel->setAlignment(Qt::AlignTop);
+
+        avalancheLayout->addWidget(avalancheTitle);
+        avalancheLayout->addWidget(avalancheLabel);
+
+        methodsLayout->addLayout(noActionLayout);
+        methodsLayout->addWidget(line1);
+        methodsLayout->addLayout(snowballLayout);
+        methodsLayout->addWidget(line2);
+        methodsLayout->addLayout(avalancheLayout);
+
+        outerLayout->addLayout(methodsLayout);
+
+        QPushButton *ok = new QPushButton("OK");
+        outerLayout->addWidget(ok, 0, Qt::AlignHCenter);
+
+        QObject::connect(ok, &QPushButton::clicked, &result, [&result](){
+            result.accept();
+        });
+
+        result.exec();
     });
 
     window.resize(300, 150);
     window.show();
+
+    return app.exec();
+}
 
     return app.exec();
 }
